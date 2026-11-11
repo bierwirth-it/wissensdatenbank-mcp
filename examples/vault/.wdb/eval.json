@@ -1,0 +1,38 @@
+[
+ {
+  "q": "What do I do if a delivery arrives damaged?",
+  "exp": [
+   "Visual inspection",
+   "Goods receipt"
+  ]
+ },
+ {
+  "q": "Where are blocked goods stored?",
+  "exp": [
+   "Quarantine store"
+  ]
+ },
+ {
+  "q": "How do I request vacation?",
+  "exp": [
+   "Vacation request"
+  ]
+ },
+ {
+  "q": "When do I need a doctor's note?",
+  "exp": [
+   "Sick leave"
+  ]
+ },
+ {
+  "q": "Who sends complaints to the supplier?",
+  "exp": [
+   "Goods receipt"
+  ]
+ },
+ {
+  "q": "What is the canteen subsidy?",
+  "exp": [],
+  "negative": true
+ }
+]

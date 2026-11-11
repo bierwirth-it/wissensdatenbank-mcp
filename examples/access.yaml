@@ -1,0 +1,38 @@
+# Example access policy for the example vault. Copy to /data/access.yaml or build it with `wdb`.
+# Tokens are added with `wdb token create <account>` (only hashes are stored).
+version: 1
+
+roles:
+  no-hr:
+    deny:
+      tags: [hr]
+  no-drafts:
+    deny:
+      fields: {status: [draft]}
+
+accounts:
+  admin:
+    description: Full access, may trigger syncs
+    allow: all
+    permissions: [search, read, admin]
+    tokens: []
+
+  staff:
+    description: Everything except HR notes and drafts
+    allow: all
+    roles: [no-hr, no-drafts]
+    tokens: []
+
+  hr:
+    description: HR notes only
+    allow:
+      tags: [hr]
+      folders: ["30 HR"]
+    tokens: []
+
+  warehouse:
+    description: Logistics notes and the glossary, drafts included
+    allow:
+      tags: [area/logistics]
+      folders: ["40 Glossary"]
+    tokens: []

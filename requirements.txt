@@ -1,0 +1,15 @@
+# Pinned on purpose; when upgrading compare search quality with `wdb eval`
+sentence-transformers==6.2.0
+transformers==5.22.2
+lancedb==0.41.0
+pyarrow==26.0.1
+numpy==2.5.4
+mcp[cli]==1.30.0
+uvicorn==0.54.0
+starlette==1.10.0
+anyio==4.16.0
+# tokenizers of the multilingual models
+sentencepiece==0.2.3
+protobuf==7.36.2
+tiktoken==0.14.0
+pyyaml==6.0.3

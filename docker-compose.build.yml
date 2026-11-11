@@ -1,0 +1,36 @@
+# Build the image from this repository (also used for Coolify "Docker Compose" deployments).
+#   docker compose -f docker-compose.build.yml up -d --build
+# Coolify: set the variables in the UI; ports are not published, Coolify's proxy routes to port 8000.
+services:
+  wissensdatenbank-mcp:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      - GIT_REPO_URL=${GIT_REPO_URL:-}
+      - GIT_BRANCH=${GIT_BRANCH:-main}
+      - SYNC_INTERVAL=${SYNC_INTERVAL:-300}
+      - GIT_SSH_PRIVATE_KEY=${GIT_SSH_PRIVATE_KEY:-}
+      - GIT_SSH_KNOWN_HOSTS=${GIT_SSH_KNOWN_HOSTS:-}
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
+      - ACCESS_GIT_URL=${ACCESS_GIT_URL:-}
+      - ACCESS_GIT_BRANCH=${ACCESS_GIT_BRANCH:-main}
+      - ACCESS_GIT_PATH=${ACCESS_GIT_PATH:-access.yaml}
+      - INDEX_EXCLUDE=${INDEX_EXCLUDE:-}
+      - FTS_LANGUAGE=${FTS_LANGUAGE:-English}
+      - EMBED_MODEL=${EMBED_MODEL:-BAAI/bge-m3}
+      - RERANK_MODEL=${RERANK_MODEL:-cross-encoder/mmarco-mMiniLMv2-L12-H384-v1}
+      - STATUS_INTERVAL=${STATUS_INTERVAL:-60}
+      - CHECKPOINT_INTERVAL=${CHECKPOINT_INTERVAL:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - data:/data
+      - index:/index
+      - models:/models
+    expose:
+      - "8000"
+
+volumes:
+  data:
+  index:
+  models:

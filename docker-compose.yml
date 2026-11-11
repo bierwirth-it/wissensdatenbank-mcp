@@ -1,0 +1,20 @@
+# Run the published image:  docker compose up -d
+# Build from source instead: docker compose -f docker-compose.build.yml up -d --build
+services:
+  wissensdatenbank-mcp:
+    image: ghcr.io/bierwirth-it/wissensdatenbank-mcp:${WDB_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - data:/data      # vault clone and access.yaml
+      - index:/index    # LanceDB index and embedding cache
+      - models:/models  # Hugging Face model cache
+    ports:
+      - "${WDB_PORT:-8000}:8000"
+
+volumes:
+  data:
+  index:
+  models:

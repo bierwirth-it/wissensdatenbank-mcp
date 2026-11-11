@@ -1,0 +1,13 @@
+# Try it locally with a plain vault folder (no Git needed):
+#   docker compose -f docker-compose.build.yml -f docker-compose.local.yml up --build
+#   VAULT_DIR=~/Obsidian/MyVault docker compose -f docker-compose.build.yml -f docker-compose.local.yml up
+services:
+  wissensdatenbank-mcp:
+    environment:
+      - GIT_REPO_URL=
+      - VAULT_DIR=/vault
+      - SYNC_INTERVAL=${SYNC_INTERVAL:-30}
+    volumes:
+      - ${VAULT_DIR:-./examples/vault}:/vault:ro
+    ports:
+      - "${WDB_PORT:-8765}:8000"
