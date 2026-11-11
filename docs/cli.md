@@ -30,15 +30,15 @@ Example:
 ```
 $ wdb status
 wissensdatenbank-mcp
-  Repository:  ssh://git.example.com/acme/vault.git (main)
-  Commit:      4f0eae2434   last sync: 2026-11-11T09:05:00+00:00   OK
-  Auto sync:   every 300 s
+  Repository:  directory /vault
+  Commit:      dir-f1949e   last sync: 2026-11-11T15:06:48+00:00   OK
+  Auto sync:   every 10 s
   Models:      offline from cache
   Access:      4 accounts (/data/access.yaml)
-Active state: table chunks_20261111085731, version 7
-  Commit 4f0eae2434, updated 2026-11-11T08:59:12+00:00 in 3:30
-  112 notes, 1722 sections, 851 wikilinks
-  Last update: full rebuild; embeddings 0 computed, 1722 from cache
+Active state: table chunks_20261111150628, version 7
+  Commit dir-f1949e, updated 2026-11-11T15:06:28+00:00 in 0:03
+  5 notes, 7 sections, 5 wikilinks
+  Last update: full rebuild; embeddings 7 computed, 0 from cache
 No task running.
 ```
 

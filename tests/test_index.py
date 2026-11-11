@@ -71,9 +71,9 @@ tags: [personal/abwesenheit]
 
 Den Antrag beim Vorgesetzten stellen. Die Personalabteilung trägt den Urlaub ein.
 """,
-    "Glossar/Formiergas.md": """# Formiergas
+    "Glossar/Kopierer.md": """# Kopierer
 
-Formiergas schützt die Wurzelseite einer Schweißnaht vor Oxidation und Anlauffarben. Siehe [[WIG-Schweißen]].
+Der Kopierer im zweiten Stock druckt doppelseitig und heftet automatisch. Siehe [[Druckerwartung]].
 """,
 }
 
@@ -145,8 +145,8 @@ def main() -> None:
         assert "Anweisungen/AA - Sichtprüfung.md" in we["links"], we
         assert "Anweisungen/AA - Sichtprüfung.md" in we["backlinks"], we  # alias link [[..|..]]
         assert "Glossar/Sperrlager.md" in we["links"]
-        info = idx.note_info("Glossar/Formiergas.md")
-        assert info["links"] == [], info  # [[WIG-Schweißen]] does not exist
+        info = idx.note_info("Glossar/Kopierer.md")
+        assert info["links"] == [], info  # [[Druckerwartung]] does not exist
         assert len({r["file_path"] for r in res}) == len(res), "duplicate notes"
     t2()
 
@@ -168,19 +168,19 @@ def main() -> None:
         (vault / "Personal/Urlaubsantrag.md").write_text(
             NOTES["Personal/Urlaubsantrag.md"] + "\n## Fristen\n\nUrlaub für Juli muss bis zum 31. März beantragt werden.\n",
             encoding="utf-8")
-        (vault / "Glossar/Formiergas.md").unlink()
-        new = {"Glossar/Gasflaschen.md": "# Gasflaschen\n\nArgon-Flaschen stehen im Gaslager an der Nordwand und werden mit Kette gesichert.\n"}
+        (vault / "Glossar/Kopierer.md").unlink()
+        new = {"Glossar/Feuerlöscher.md": "# Feuerlöscher\n\nDie Feuerlöscher hängen im Flur an der Nordwand und werden jährlich geprüft.\n"}
         f2 = write_vault(vault, new)
         assert idx.update("c3", f2) is True
         ch = idx.state["changes"]
         assert (ch["new"], ch["changed"], ch["deleted"], ch["full"]) == (1, 1, 1, False), ch
         emb = idx.state["embeddings"]
-        # Urlaubsantrag: 2 sections unchanged (cache), 1 new; Gasflaschen 1 new
+        # Urlaubsantrag: 2 sections unchanged (cache), 1 new; Feuerlöscher 1 new
         assert emb["computed"] == 2 and emb["reused"] >= 1, emb
-        assert top_note(idx, "Wo stehen die Argon-Flaschen?") == "Glossar/Gasflaschen.md"
+        assert top_note(idx, "Wo hängen die Feuerlöscher?") == "Glossar/Feuerlöscher.md"
         assert top_note(idx, "Bis wann muss ich Urlaub für Juli beantragen?") == "Personal/Urlaubsantrag.md"
-        notes = {r["file_path"] for r in idx.search("Formiergas Wurzelschutz", top_k=8)}
-        assert "Glossar/Formiergas.md" not in notes, notes
+        notes = {r["file_path"] for r in idx.search("Kopierer doppelseitig heften", top_k=8)}
+        assert "Glossar/Kopierer.md" not in notes, notes
         assert idx.state["stats"]["notes"] == 5
     t5()
 
@@ -194,21 +194,21 @@ def main() -> None:
             return orig(texts)
         idx.models.encode = slow
         try:
-            write_vault(vault, {"Glossar/Laser.md": "# Laser\n\nDer Faserlaser schneidet Edelstahl bis 20 mm.\n"})
+            write_vault(vault, {"Glossar/Beamer.md": "# Beamer\n\nDer Beamer im Besprechungsraum unterstützt HDMI bis 4K.\n"})
             f3 = {p.relative_to(vault).as_posix(): p for p in sorted(vault.rglob("*.md"))}
             th = threading.Thread(target=idx.update, args=("c4", f3), name="upd")
             th.start()
             time.sleep(1.0)
             assert idx.building is not None, "update is not running"
             t0 = time.monotonic()
-            res = idx.search("Faserlaser schneidet Edelstahl", top_k=8)
+            res = idx.search("Beamer im Besprechungsraum HDMI", top_k=8)
             dt = time.monotonic() - t0
-            assert "Glossar/Laser.md" not in {r["file_path"] for r in res}, "new state visible too early"
+            assert "Glossar/Beamer.md" not in {r["file_path"] for r in res}, "new state visible too early"
             assert dt < 2.5, f"search blocked ({dt:.1f} s)"
             th.join()
         finally:
             idx.models.encode = orig
-        assert top_note(idx, "Faserlaser schneidet Edelstahl") == "Glossar/Laser.md"
+        assert top_note(idx, "Beamer im Besprechungsraum HDMI") == "Glossar/Beamer.md"
     t6()
 
     @test("Cancel: previous state stays, embeddings cached, resume uses the cache")
@@ -238,7 +238,7 @@ def main() -> None:
             idx.cfg.embed_batch = old_batch
         assert idx.state["version"] == v_before, "state changed"
         assert idx.state["commit"] == "c4"
-        assert top_note(idx, "Faserlaser schneidet Edelstahl") == "Glossar/Laser.md"
+        assert top_note(idx, "Beamer im Besprechungsraum HDMI") == "Glossar/Beamer.md"
         assert idx.update("c5", f4) is True
         emb = idx.state["embeddings"]
         assert emb["reused"] >= 64, emb  # at least the blocks computed before cancelling
@@ -248,7 +248,7 @@ def main() -> None:
     @test("Error while writing: fall back to the previous state")
     def t8():
         commit = idx.state["commit"]
-        (vault / "Glossar/Laser.md").write_text("# Laser\n\nGeänderter Text zum Laser.\n", encoding="utf-8")
+        (vault / "Glossar/Beamer.md").write_text("# Beamer\n\nGeänderter Text zum Beamer.\n", encoding="utf-8")
         f5 = {p.relative_to(vault).as_posix(): p for p in sorted(vault.rglob("*.md"))}
         orig = idx._ensure_indices
 
@@ -265,7 +265,7 @@ def main() -> None:
         assert idx.state["commit"] == commit
         tbl = idx.db.open_table(idx.state["table"])
         assert tbl.version == idx.state["version"], (tbl.version, idx.state["version"])
-        assert top_note(idx, "Faserlaser schneidet Edelstahl bis 20 mm") == "Glossar/Laser.md"
+        assert top_note(idx, "Beamer im Besprechungsraum HDMI 4K") == "Glossar/Beamer.md"
         assert idx.update("c6", f5) is True
     t8()
 
@@ -313,7 +313,7 @@ def main() -> None:
             "staff": {"allow": "all", "roles": ["no-hr", "no-drafts"]},
             "hr": {"allow": {"tags": ["personal"]}},
             "warehouse": {"allow": {"folders": ["Prozesse", "Glossar"]},
-                          "deny": {"paths": ["Glossar/Gas*"]}},
+                          "deny": {"paths": ["Glossar/Feuer*"]}},
             "nobody": {"allow": {"tags": ["does-not-exist"]}},
             "off": {"allow": "all", "disabled": True},
         },
@@ -354,7 +354,7 @@ def main() -> None:
     def ta3():
         hr = accounts["hr"]
         assert idx.manifest(hr) == ["Personal/Urlaubsantrag.md"], idx.manifest(hr)
-        res = idx.search("Wo stehen die Argon-Flaschen?", top_k=10, access=hr)
+        res = idx.search("Wo hängen die Feuerlöscher?", top_k=10, access=hr)
         assert {r["file_path"] for r in res} <= {"Personal/Urlaubsantrag.md"}, res
         res = idx.search("Wie beantrage ich Urlaub?", top_k=3, access=hr)
         assert res and res[0]["file_path"] == "Personal/Urlaubsantrag.md", res
@@ -364,16 +364,16 @@ def main() -> None:
         wh = accounts["warehouse"]
         vis = set(idx.manifest(wh))
         assert "Prozesse/PA - Wareneingang.md" in vis and "Glossar/Sperrlager.md" in vis, vis
-        assert "Glossar/Gasflaschen.md" not in vis and "Personal/Urlaubsantrag.md" not in vis, vis
+        assert "Glossar/Feuerlöscher.md" not in vis and "Personal/Urlaubsantrag.md" not in vis, vis
         try:
-            idx.note_info("Glossar/Gasflaschen.md", wh)
+            idx.note_info("Glossar/Feuerlöscher.md", wh)
             raise AssertionError("hidden note readable")
         except NoteNotFound:
             pass
         rel = idx.related("Glossar/Sperrlager.md", depth=2, access=wh)
         allp = [x["file_path"] for k in ("links", "backlinks", "second_degree") for x in rel.get(k, [])]
         assert "Anweisungen/AA - Sichtprüfung.md" not in allp, allp
-        ex = idx.explain(wh, "Glossar/Gasflaschen.md")
+        ex = idx.explain(wh, "Glossar/Feuerlöscher.md")
         assert not ex["visible"] and "path" in ex["reason"], ex
         ex = idx.explain(accounts["staff"], "Personal/Urlaubsantrag.md")
         assert not ex["visible"] and "personal" in ex["reason"], ex

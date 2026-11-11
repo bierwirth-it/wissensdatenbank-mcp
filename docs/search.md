@@ -40,9 +40,10 @@ Put the questions into the vault as `.wdb/eval.json` (hidden folders are not ind
 
 ```
 $ wdb eval -v
-32 questions: rank 1: 25, top 3: 30, top 5: 31, missed: 1, MRR 0.861, time median 0.39 s, max 0.62 s
-  [1] How do I request vacation?  ->  Vacation request, Absence, Sick leave
+5 questions: rank 1: 5, top 3: 5, top 5: 5, missed: 0, MRR 1.0, time median 0.066 s, max 0.103 s
+  [1] What do I do if a delivery arrives damaged?  ->  Visual inspection, Goods receipt, Sick leave
+  [1] How do I request vacation?  ->  Vacation request, Sick leave, Goods receipt
   ...
 ```
 
-Reference values from our German test vault (112 notes, 32 questions, 8 CPU cores) with the default settings: MRR 0.861, 25 of 32 questions answered with the expected note at rank 1, median 0.39 s per query. The linked-notes step raised the MRR by about 0.03, German stemming by about 0.06 compared with plain tokenisation.
+Measure with your own questions: quality depends on the vault, its language and how users phrase questions. In our tests on German process documentation, the linked-notes step and language-specific stemming each improved the MRR noticeably, and the reranker improved it further.
