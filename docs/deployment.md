@@ -10,7 +10,9 @@ The server is a single container with three volumes:
 
 All three should be persistent. Losing `/index` means a full rebuild (embeddings recomputed); losing `/models` means downloading the models again; losing `/data` in file mode loses the access policy – back it up, or keep the policy in Git.
 
-The service listens on port **8000**: `/mcp` (MCP Streamable HTTP, token required unless the server is open) and `/health` (no token; 200 once an index is active, 503 before). The `/admin` endpoints only answer requests from inside the container.
+The service listens on port **8000**: `/mcp` (MCP Streamable HTTP, token required unless the server is open), `/livez` (liveness, 200 while the process runs – used by the image's Docker health check) and `/health` (readiness, 200 once an index is active, 503 before; use it for monitoring). No token is needed for `/livez` and `/health`. The `/admin` endpoints only answer requests from inside the container.
+
+While the first index is built the container is already healthy and routable; MCP searches answer "index is being built" until it is ready.
 
 On the first start the models are downloaded and the whole vault is indexed – roughly 2–5 minutes per 1,000 notes on 8 CPU cores, plus the download. Progress appears in the log once a minute. Afterwards the models load offline and updates take seconds.
 
@@ -106,7 +108,7 @@ Faster deployments and no build on your server; updates are explicit.
 
    Without them the index and models are lost on every redeploy.
 4. **Environment variables:** as above (`GIT_REPO_URL`, `GIT_SSH_PRIVATE_KEY` multiline, `GIT_SSH_KNOWN_HOSTS`, `FTS_LANGUAGE`, …).
-5. **Health check:** the image has its own Docker health check (`/health`, up to 30 minutes start period for the first indexing). If you enable Coolify's health check instead, use path `/health`, port `8000` and a long start period.
+5. **Health check:** the image has its own Docker health check on `/livez`. If you enable Coolify's health check instead, use path `/livez` and port `8000` – not `/health`, which returns 503 during the first indexing and would keep the proxy from routing to the container.
 6. **Deploy**, then create the first account in the terminal as above.
 
 Alternatively create a *Docker Compose (empty)* resource and paste [`docker-compose.yml`](../docker-compose.yml) (remove the `ports:` section; Coolify's proxy routes the domain).
@@ -130,5 +132,6 @@ Tokens travel in every request – use HTTPS outside trusted networks. Some MCP 
 
 ## Monitoring
 
-- `GET /health` → `{"ok": true, "commit": "…", "index_commit": "…", "building": false, "last_sync_ok": true}` – suitable for Uptime Kuma & co. Alert on non-200 or `last_sync_ok: false`.
+- `GET /health` → `{"ok": true, "commit": "…", "index_commit": "…", "building": false, "last_sync_ok": true}` – readiness, suitable for Uptime Kuma & co. Alert on non-200 or `last_sync_ok: false`.
+- `GET /livez` → liveness only; use it for container health checks.
 - The log shows every update with its changed files, a status line per minute during long tasks and checkpoints of the embedding cache. Idle periods are silent.

@@ -489,6 +489,17 @@ async def sync_now(ctx: Context) -> dict:
     return {"started": True, "building": _index.building}
 
 
+@mcp.custom_route("/livez", methods=["GET"])
+async def livez(_: Request) -> JSONResponse:
+    """Liveness for container health checks: 200 as soon as the server answers.
+
+    Reverse proxies such as Traefik only route to healthy containers; using
+    /health (readiness) there would make the service unreachable during the
+    first indexing, although MCP requests are answered ("index is being built").
+    """
+    return JSONResponse({"ok": True, "ready": _index.snapshot_ready(), "building": _index.building is not None})
+
+
 @mcp.custom_route("/health", methods=["GET"])
 async def health(_: Request) -> JSONResponse:
     info = _index.info()

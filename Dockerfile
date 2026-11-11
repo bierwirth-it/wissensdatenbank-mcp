@@ -35,9 +35,10 @@ ENV PYTHONUNBUFFERED=1 \
 VOLUME ["/data", "/index", "/models"]
 EXPOSE 8000
 
-# the first start downloads the models (~3 GB) and builds the index
-HEALTHCHECK --interval=30s --timeout=5s --start-period=1800s --retries=3 \
-  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health').status==200 else 1)"
+# liveness only: the service must stay routable while the first index is built
+# (readiness for monitoring: GET /health returns 503 until an index is active)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/livez').status==200 else 1)"
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python", "/opt/app/server.py"]

@@ -52,6 +52,7 @@ jobs:
             curl -sf http://127.0.0.1:8000/health && break
             sleep 5
           done
+          curl -sf http://127.0.0.1:8000/livez
           docker exec wdb wdb status
           docker exec wdb wdb eval -v
           docker exec wdb wdb account add ci --all

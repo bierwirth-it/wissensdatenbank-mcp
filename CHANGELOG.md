@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 – 2026-11-11
+
+- Fix: the Docker health check used the readiness endpoint `/health`, so reverse proxies (e.g. Traefik in Coolify) did not route to the container until the first index was built. The health check now uses the new liveness endpoint `/livez`; `/health` keeps its readiness meaning for monitoring.
+
 ## 0.1.0 – 2026-11-11
 
 First public release.
