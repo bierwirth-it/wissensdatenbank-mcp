@@ -49,6 +49,10 @@ MODEL_REPOS = [
 ]
 SIGNATURE = "|".join(MODEL_REPOS)
 MODELS_DIR = Path(os.environ.get("HF_HOME", "/models"))
+# startup: load (and download) all models before the first sync; lazy: on first use
+MODEL_PRELOAD = os.environ.get("MODEL_PRELOAD", "startup").strip().lower()
+if MODEL_PRELOAD not in ("startup", "lazy"):
+    raise SystemExit(f"MODEL_PRELOAD must be 'startup' or 'lazy', not {MODEL_PRELOAD!r}")
 MODELS_READY = MODELS_DIR / ".models-ready"
 
 
@@ -114,7 +118,8 @@ except Exception:  # noqa: BLE001
 if os.environ.get("HF_HUB_OFFLINE") == "1":
     log.info("Models are cached, loading without network access (HF_HUB_OFFLINE=1)")
 elif MODELS_MISSING:
-    log.info("Models not in the cache yet, they are downloaded on first use: %s", ", ".join(MODELS_MISSING))
+    log.info("Models not in the cache yet, downloading %s: %s",
+             "at start" if MODEL_PRELOAD == "startup" else "on first use", ", ".join(MODELS_MISSING))
 
 _sync_lock = threading.Lock()  # prevents parallel syncs
 _index = VaultIndex(INDEX_DIR)
@@ -287,10 +292,10 @@ def sync_once(force: bool = False, use_cache: bool = True) -> bool:
         built = _index.update(commit, indexed_files(), force=force, use_cache=use_cache)
         _state["last_sync_ok"] = True
         _state["last_error"] = None
-        # after a successful build all models are cached: load them without
-        # network access from the next start on
-        if _index.snapshot_ready() and not _models_warm.is_set():
-            _mark_models_ready()
+        if MODEL_PRELOAD == "startup" and not _models_warm.is_set():
+            _mark_models_ready()            # retry if loading at start failed
+        elif MODEL_PRELOAD == "lazy" and _index.models.all_loaded and not _models_warm.is_set():
+            _mark_models_ready()            # both models were loaded by use: just record it
         return built
     except Exception as exc:  # noqa: BLE001 - the service keeps running
         log.exception("Sync failed")
@@ -304,11 +309,15 @@ def sync_once(force: bool = False, use_cache: bool = True) -> bool:
 def _mark_models_ready() -> None:
     """Load every model once (downloading what is missing), then allow offline starts.
 
-    The index build only needs the embedding model; the reranker is used by the
-    first search. Writing the marker before it is cached made later offline starts
-    fail on every search."""
+    The marker is only written once every model was loaded successfully; offline
+    starts additionally require all models on disk (see MODELS_MISSING)."""
     try:
+        t0 = time.monotonic()
+        if not _index.models.all_loaded:
+            log.info("Loading models%s ...", " (missing ones are downloaded)" if MODELS_MISSING else "")
         _index.models.warm_up()
+        if time.monotonic() - t0 > 1:
+            log.info("All models loaded (%.0f s)", time.monotonic() - t0)
     except Exception:  # noqa: BLE001
         log.exception("Could not load all models; starts keep using network access")
         return
@@ -319,6 +328,8 @@ def _mark_models_ready() -> None:
 
 
 def sync_loop() -> None:
+    if MODEL_PRELOAD == "startup":
+        _mark_models_ready()
     while True:
         if not _paused.is_set():
             sync_once()

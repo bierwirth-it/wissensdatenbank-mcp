@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 – 2026-11-17
+
+- New setting `MODEL_PRELOAD`: `startup` (default) loads all models at start, downloading missing ones, before the first sync – download problems show up immediately and the first search is fast; `lazy` loads each model on first use.
+
 ## 0.1.4 – 2026-11-17
 
 - Fix: after the first index build the server switched to offline model loading although the reranker had not been downloaded yet (it is only used by searches). After a restart every search failed with `LocalEntryNotFoundError`. Now all models are loaded (and downloaded if missing) right after the first build before offline mode is enabled, and every start checks that all models are actually on disk – missing models are always fetched online. Installations in the broken state repair themselves on the next start.
