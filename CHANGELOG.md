@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 – 2026-11-17
+
+- Fix: version cleanup during a long update (longer than 2 minutes) could delete the active index version. Searches on the previous state and the rollback after a crash in the middle of an update then failed ("Version … no longer exists"). The active version is now protected by a LanceDB tag; new test covers it.
+- Removed the `cleanup_old_versions` call that required the optional `pylance` package and logged a traceback at DEBUG level after every update; `optimize()` already removes old versions.
+- New setting `VERSION_RETENTION_S` (default 120).
+
 ## 0.1.2 – 2026-11-17
 
 - Embedding progress advances every batch (32 sections) instead of every 256: sections are sorted by length once, so small batches are as fast as large calls (measured 186 s vs. 206 s for 1,610 sections). Checkpoints are written more often as well. Early remaining-time estimates are high because the longest sections are computed first.

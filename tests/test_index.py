@@ -305,6 +305,42 @@ def main() -> None:
         assert r["after"] <= r["before"] and r["after"] == idx.state["stats"]["chunks"] or r["after"] > 0, r
     t12()
 
+    @test("Version cleanup during an update never removes the active version (rollback still works)")
+    def t13():
+        old_ret = idx.cfg.version_retention_s
+        idx.cfg.version_retention_s = 0          # clean up everything that is not protected
+        v_active, commit = idx.state["version"], idx.state["commit"]
+        time.sleep(1.1)
+        (vault / "Glossar/Beamer.md").write_text("# Beamer\n\nDer Beamer zeigt nun auch USB-C.\n", encoding="utf-8")
+        f7 = {p.relative_to(vault).as_posix(): p for p in sorted(vault.rglob("*.md"))}
+        orig, calls = idx._write_state, {"n": 0}
+
+        def crash_once(state):
+            calls["n"] += 1
+            if calls["n"] == 1:              # after optimize/cleanup, before the switch-over
+                raise RuntimeError("simulated crash")
+            return orig(state)
+        idx._write_state = crash_once
+        try:
+            idx.update("c8", f7)
+            raise AssertionError("no error")
+        except RuntimeError:
+            pass
+        finally:
+            idx._write_state = orig
+            idx.cfg.version_retention_s = old_ret
+        assert idx.state["commit"] == commit, idx.state
+        tbl = idx.db.open_table(idx.state["table"])
+        tbl.checkout(idx.state["version"])      # raises if the version was cleaned up
+        assert idx.state["version"] != v_active or tbl.count_rows() > 0
+        assert top_note(idx, "Beamer im Besprechungsraum HDMI") == "Glossar/Beamer.md"
+        idx2 = VaultIndex(index_dir, Config())
+        idx2.open()
+        assert idx2.snapshot_ready()
+        assert idx.update("c8", f7) is True
+
+    t13()
+
     # -- access control ----------------------------------------------------
     policy = {
         "roles": {"no-hr": {"deny": {"tags": ["personal"]}},

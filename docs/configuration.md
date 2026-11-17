@@ -62,6 +62,7 @@ See [access-control.md](access-control.md).
 | `TORCH_THREADS` | min(CPU cores, 8) | CPU threads for the models. |
 | `STATUS_INTERVAL` | `60` | Status line every n seconds while a long task runs (`0` = off). |
 | `CHECKPOINT_INTERVAL` | `60` | Save computed embeddings every n seconds during an update. |
+| `VERSION_RETENTION_S` | `120` | Older index versions are deleted after this many seconds. The active version is always kept. |
 | `HF_OFFLINE_WHEN_CACHED` | `1` | Load models without network access once they are cached. |
 | `EVAL_FILE` | `<vault>/.wdb/eval.json` | Test questions for `wdb eval`. |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for details. |

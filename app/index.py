@@ -88,6 +88,9 @@ class Config:
     # accounts that see less than this share of the notes search exactly (faster with narrow filters)
     exact_below_share: float = float(_env("VECTOR_EXACT_BELOW_SHARE", "0.1"))
     checkpoint_interval: float = float(_env("CHECKPOINT_INTERVAL", "60"))
+    # older table versions are deleted after this many seconds (the active version
+    # is protected by a tag, so searches and rollbacks never lose it)
+    version_retention_s: float = float(_env("VERSION_RETENTION_S", "120"))
     snippet_chars: int = int(_env("SNIPPET_CHARS", "400"))
 
     def index_signature(self) -> str:
@@ -261,7 +264,25 @@ class VaultIndex:
         log.info("Index loaded: %s notes, %s sections, commit %s",
                  s.get("notes"), s.get("chunks"), str(state.get("commit"))[:10])
 
+    ACTIVE_TAG = "active"
+
+    def _pin_active(self, tbl, version: int) -> None:
+        """Tag the active version so that version cleanup never deletes it.
+
+        Without the tag a long update (longer than the retention) would delete the
+        version that searches are reading and that a rollback needs."""
+        try:
+            tags = tbl.tags.list()
+            if self.ACTIVE_TAG in tags:
+                if tags[self.ACTIVE_TAG].get("version") != version:
+                    tbl.tags.update(self.ACTIVE_TAG, version)
+            else:
+                tbl.tags.create(self.ACTIVE_TAG, version)
+        except Exception:  # noqa: BLE001
+            log.warning("Could not tag the active index version %s", version, exc_info=True)
+
     def _load_snapshot(self, name: str, version: int) -> None:
+        self._pin_active(self.db.open_table(name), version)
         tbl = self.db.open_table(name)
         tbl.checkout(version)
         notes = json.loads(self._notes_path(name, version).read_text())
@@ -550,15 +571,13 @@ class VaultIndex:
             tbl.create_index(metric="cosine", vector_column_name="vector", index_type="IVF_HNSW_SQ",
                              replace=True)
             log.info("Vector index created (%.0f s)", time.monotonic() - t0)
-        tbl.optimize(cleanup_older_than=timedelta(minutes=2))  # fold new rows into all indices
+        # fold new rows into all indices and delete old versions; the active version
+        # is tagged (see _pin_active) and survives even if it is older than the retention
+        tbl.optimize(cleanup_older_than=timedelta(seconds=self.cfg.version_retention_s))
 
     def _after_switch(self, tbl, old_table: str | None) -> None:
-        # delete older versions only after a grace period: searches still running
-        # on the previous state must not lose their data
-        try:
-            tbl.cleanup_old_versions(older_than=timedelta(minutes=2))
-        except Exception:  # noqa: BLE001
-            log.debug("Could not clean up old versions", exc_info=True)
+        # older versions are removed by optimize() in the next update, after the
+        # retention period, so searches still running on the previous state keep their data
         if old_table and old_table != tbl.name and old_table in self._tables():
             self.db.drop_table(old_table)
             log.info("Removed old table %s", old_table)
