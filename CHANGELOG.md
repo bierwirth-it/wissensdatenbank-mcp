@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 – 2026-11-17
+
+- Fix: after the first index build the server switched to offline model loading although the reranker had not been downloaded yet (it is only used by searches). After a restart every search failed with `LocalEntryNotFoundError`. Now all models are loaded (and downloaded if missing) right after the first build before offline mode is enabled, and every start checks that all models are actually on disk – missing models are always fetched online. Installations in the broken state repair themselves on the next start.
+- `wdb search` reports errors as a message instead of an HTTP 500 traceback.
+- CI restarts the smoke-test container and searches offline.
+
 ## 0.1.3 – 2026-11-17
 
 - Fix: version cleanup during a long update (longer than 2 minutes) could delete the active index version. Searches on the previous state and the rollback after a crash in the middle of an update then failed ("Version … no longer exists"). The active version is now protected by a LanceDB tag; new test covers it.

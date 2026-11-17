@@ -57,6 +57,19 @@ jobs:
           docker exec wdb wdb eval -v
           docker exec wdb wdb account add ci --all
           docker exec wdb wdb access list
+      - name: Restart offline and search (models must all be cached)
+        run: |
+          for _ in $(seq 1 60); do
+            docker logs wdb 2>&1 | grep -q "All models cached" && break
+            sleep 5
+          done
+          docker restart wdb
+          for _ in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/health && break
+            sleep 2
+          done
+          docker logs wdb 2>&1 | grep "loading without network access"
+          docker exec wdb wdb search "How do I request vacation?" -k 1 | grep "Vacation request"
       - name: Fix model cache permissions
         if: always()
         run: sudo chown -R "$(id -u)" ~/models || true

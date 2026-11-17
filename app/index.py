@@ -152,6 +152,11 @@ class Models:
                 log.info("Reranker loaded (%.1f s)", time.monotonic() - t0)
             return self._reranker
 
+    def warm_up(self) -> None:
+        """Load (and if necessary download) every model used for indexing and search."""
+        self.embedder()
+        self.reranker()
+
     @property
     def dim(self) -> int:
         m = self.embedder()

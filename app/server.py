@@ -43,13 +43,27 @@ SSH_DIR = Path.home() / ".ssh"
 EVAL_FILE = os.environ.get("EVAL_FILE", str(REPO_DIR / ".wdb" / "eval.json"))
 
 # model signature: once all models were loaded successfully, start without network
-SIGNATURE = "|".join([
+MODEL_REPOS = [
     os.environ.get("EMBED_MODEL", "BAAI/bge-m3"),
     os.environ.get("RERANK_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"),
-])
+]
+SIGNATURE = "|".join(MODEL_REPOS)
 MODELS_DIR = Path(os.environ.get("HF_HOME", "/models"))
 MODELS_READY = MODELS_DIR / ".models-ready"
-if os.environ.get("HF_OFFLINE_WHEN_CACHED", "1") == "1" and MODELS_READY.exists() \
+
+
+def _model_cached(repo: str) -> bool:
+    """Is a Hugging Face model (or a local model directory) present on disk?"""
+    if Path(repo).is_dir():
+        return True
+    snaps = MODELS_DIR / "hub" / ("models--" + repo.replace("/", "--")) / "snapshots"
+    return snaps.is_dir() and any((s / "config.json").exists() for s in snaps.iterdir())
+
+
+MODELS_MISSING = [r for r in MODEL_REPOS if not _model_cached(r)]
+# Load without network access only when the marker matches AND every model is on
+# disk; otherwise a model that was never downloaded could not be loaded at all.
+if os.environ.get("HF_OFFLINE_WHEN_CACHED", "1") == "1" and not MODELS_MISSING and MODELS_READY.exists() \
         and MODELS_READY.read_text().strip() == SIGNATURE:
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
     os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
@@ -99,11 +113,14 @@ except Exception:  # noqa: BLE001
 
 if os.environ.get("HF_HUB_OFFLINE") == "1":
     log.info("Models are cached, loading without network access (HF_HUB_OFFLINE=1)")
+elif MODELS_MISSING:
+    log.info("Models not in the cache yet, they are downloaded on first use: %s", ", ".join(MODELS_MISSING))
 
 _sync_lock = threading.Lock()  # prevents parallel syncs
 _index = VaultIndex(INDEX_DIR)
 _policy = Policy(ACCESS_FILE, legacy_token=MCP_AUTH_TOKEN)
 _paused = threading.Event()  # automatic sync paused (wdb pause)
+_models_warm = threading.Event()  # all models loaded in this process
 _state: dict = {"commit": None, "access_commit": None, "last_sync": None, "last_sync_ok": None,
                 "last_error": None}
 _current_access: contextvars.ContextVar[Access] = contextvars.ContextVar("access", default=FULL_ACCESS)
@@ -272,9 +289,8 @@ def sync_once(force: bool = False, use_cache: bool = True) -> bool:
         _state["last_error"] = None
         # after a successful build all models are cached: load them without
         # network access from the next start on
-        if _index.snapshot_ready() and (not MODELS_READY.exists()
-                                        or MODELS_READY.read_text().strip() != SIGNATURE):
-            MODELS_READY.write_text(SIGNATURE + "\n")
+        if _index.snapshot_ready() and not _models_warm.is_set():
+            _mark_models_ready()
         return built
     except Exception as exc:  # noqa: BLE001 - the service keeps running
         log.exception("Sync failed")
@@ -283,6 +299,23 @@ def sync_once(force: bool = False, use_cache: bool = True) -> bool:
         return False
     finally:
         _sync_lock.release()
+
+
+def _mark_models_ready() -> None:
+    """Load every model once (downloading what is missing), then allow offline starts.
+
+    The index build only needs the embedding model; the reranker is used by the
+    first search. Writing the marker before it is cached made later offline starts
+    fail on every search."""
+    try:
+        _index.models.warm_up()
+    except Exception:  # noqa: BLE001
+        log.exception("Could not load all models; starts keep using network access")
+        return
+    _models_warm.set()
+    if not MODELS_READY.exists() or MODELS_READY.read_text().strip() != SIGNATURE or MODELS_MISSING:
+        MODELS_READY.write_text(SIGNATURE + "\n")
+        log.info("All models cached; following starts load them without network access")
 
 
 def sync_loop() -> None:
@@ -719,6 +752,9 @@ async def admin_search(request: Request) -> JSONResponse:
             rerank=bool(body.get("rerank", True)), access=access))
     except (NotReady, PolicyError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=503)
+    except Exception as exc:  # noqa: BLE001 - report instead of a bare 500
+        log.exception("Admin search failed")
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
     return JSONResponse(res)
 
 
