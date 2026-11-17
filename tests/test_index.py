@@ -220,11 +220,11 @@ def main() -> None:
         orig = idx.models.encode
         calls = {"n": 0}
         old_batch = idx.cfg.embed_batch
-        idx.cfg.embed_batch = 4  # blocks of 64 sections, so there are several cancellation points
+        idx.cfg.embed_batch = 4  # batches of 4 sections, many cancellation points
 
         def counting(texts):
             calls["n"] += 1
-            if calls["n"] == 2:
+            if calls["n"] == 20:  # 19 batches of 4 sections computed
                 progress.cancel_requested.set()
             return orig(texts)
         idx.models.encode = counting

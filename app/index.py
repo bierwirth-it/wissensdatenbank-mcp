@@ -417,8 +417,11 @@ class VaultIndex:
                      len(keys), cache_stats["reused"], len(uniq_missing))
             progress.set_phase("Embeddings", len(uniq_missing))
             last_cp = te = time.monotonic()
-            # larger blocks: the model sorts by length within one call and saves padding
-            step = max(self.cfg.embed_batch * 8, 64)
+            # Sort once by length (longest first, like the model does within one call):
+            # batches of similar length need little padding, so small steps are as fast
+            # as large calls while progress and checkpoints advance every batch.
+            uniq_missing.sort(key=lambda k: -len(text_of[k]))
+            step = max(self.cfg.embed_batch, 1)
             for n in range(0, len(uniq_missing), step):
                 progress.check_cancel()
                 part = uniq_missing[n:n + step]

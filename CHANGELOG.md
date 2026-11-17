@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 – 2026-11-17
+
+- Embedding progress advances every batch (32 sections) instead of every 256: sections are sorted by length once, so small batches are as fast as large calls (measured 186 s vs. 206 s for 1,610 sections). Checkpoints are written more often as well. Early remaining-time estimates are high because the longest sections are computed first.
+- `/livez` health-check requests are no longer written to the access log.
+
 ## 0.1.1 – 2026-11-11
 
 - Fix: the Docker health check used the readiness endpoint `/health`, so reverse proxies (e.g. Traefik in Coolify) did not route to the container until the first index was built. The health check now uses the new liveness endpoint `/livez`; `/health` keeps its readiness meaning for monitoring.

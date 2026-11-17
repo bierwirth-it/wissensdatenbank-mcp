@@ -74,7 +74,8 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 class _NoHealth(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return "/health" not in record.getMessage()
+        msg = record.getMessage()
+        return "/health" not in msg and "/livez" not in msg
 
 
 logging.getLogger("uvicorn.access").addFilter(_NoHealth())
